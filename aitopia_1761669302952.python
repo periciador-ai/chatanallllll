@@ -1,0 +1,48 @@
+from flask import Flask, request, jsonify, session
+from flask_sqlalchemy import SQLAlchemy
+from functools import wraps
+import json
+import re
+
+app = Flask(name)
+app.secret_key = 'sua_chave_secreta'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///usuarios.db'
+db = SQLAlchemy(app)
+
+# Model de Usuário
+class Usuario(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password = db.Column(db.String(120), nullable=False)
+
+# Decorador para verificar se o usuário está autenticado
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'username' not in session:
+            return jsonify({"mensagem": "Acesso negado, você não está autenticado!"}), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route('/login', methods=['POST'])
+def login():
+    username = request.json.get('username')
+    password = request.json.get('password')
+    usuario = Usuario.query.filter_by(username=username, password=password).first()
+    if usuario:
+        session['username'] = username
+        return jsonify({"mensagem": "Login bem-sucedido!"}), 200
+    return jsonify({"mensagem": "Credenciais inválidas!"}), 401
+
+@app.route('/processar_dados', methods=['POST'])
+@login_required
+def processar_dados():
+    # Lógica para processar dados recebidos
+    dados = request.json.get('dados')
+    # Exemplo simples de análise como no exemplo anterior
+    # Adicione aqui a lógica de processamento e análise de dados
+    return jsonify({"mensagem": "Dados processados com sucesso!"}), 200
+
+if name == 'main':
+    db.create_all()
+    app.run(debug=True)
